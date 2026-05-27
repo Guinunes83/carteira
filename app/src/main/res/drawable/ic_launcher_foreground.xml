@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Attach Money icon as foreground -->
+    <path
+        android:fillColor="#8BA9C7"
+        android:pathData="M54,23C36.88,23 23,36.88 23,54C23,71.12 36.88,85 54,85C71.12,85 85,71.12 85,54C85,36.88 71.12,23 54,23ZM61.34,66.8H46.66V62.46H61.34V66.8ZM61.34,56.13H46.66V51.8H61.34V56.13ZM61.34,45.47H46.66V41.13H61.34V45.47Z"/>
+    <path
+        android:fillColor="#8BA9C7"
+        android:pathData="M61.75,41.25V47.5H46.25V41.25z M61.75,50.75V57H46.25V50.75z M61.75,60.25V66.5H46.25V60.25z" />
+</vector>
