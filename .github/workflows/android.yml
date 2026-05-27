@@ -13,29 +13,29 @@ jobs:
     - name: Baixar o código fonte
       uses: actions/checkout@v4
 
-    # 2. Instala o Java JDK 17 (compatível com build.gradle.kts moderno)
+    # 2. Instala o Java JDK 17
     - name: Configurar o Java JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
-    # 3. Como o 'gradlew' não está na sua raiz, este passo instala o Gradle na máquina virtual
-    #    e recria o executável 'gradlew' faltante antes de compilar.
-    - name: Instalar Gradle e Criar Wrapper Faltante
+    # 3. Baixa e gera o Wrapper usando uma versão moderna do Gradle (8.5)
+    #    que suporta nativamente o Java 17 e os scripts .kts
+    - name: Instalar Gradle Moderno e Criar Wrapper
       run: |
         sudo apt-get update && sudo apt-get install -y gradle
-        gradle wrapper
+        gradle wrapper --gradle-version 8.5
 
-    # 4. Concede a permissão de execução para o arquivo recém-gerado
+    # 4. Concede a permissão de execução para o arquivo gerado
     - name: Conceder permissão ao Gradle Wrapper
       run: chmod +x gradlew
 
-    # 5. Executa a compilação usando o script Kotlin do seu projeto
+    # 5. Executa a compilação do seu projeto
     - name: Compilar o APK de Debug
       run: ./gradlew assembleDebug
 
-    # 6. Captura o APK gerado e disponibiliza para você na aba Actions
+    # 6. Captura o APK gerado e disponibiliza para download
     - name: Disponibilizar APK para Download
       uses: actions/upload-artifact@v4
       with:
