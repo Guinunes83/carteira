@@ -29,6 +29,9 @@ fun SettingsScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
     var showCategoryDialog by remember { mutableStateOf(false) }
     var categoryToEdit by remember { mutableStateOf<com.example.data.Category?>(null) }
     var categoryToDelete by remember { mutableStateOf<com.example.data.Category?>(null) }
+    
+    var showCycleDialog by remember { mutableStateOf(false) }
+    var showCategoriesListDialog by remember { mutableStateOf(false) }
 
     val icons = listOf(
         "ShoppingCart" to Icons.Default.ShoppingCart,
@@ -79,28 +82,24 @@ fun SettingsScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(24.dp))
 
         // Cycle Configuration
-        Text("Período do Ciclo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            OutlinedTextField(
-                value = startDay.toString(),
-                onValueChange = { it.toIntOrNull()?.let { day -> viewModel.setStartDay(day) } },
-                label = { Text("Dia Inicial") },
-                modifier = Modifier.weight(1f)
-            )
-            OutlinedTextField(
-                value = endDay.toString(),
-                onValueChange = { it.toIntOrNull()?.let { day -> viewModel.setEndDay(day) } },
-                label = { Text("Dia Final") },
-                modifier = Modifier.weight(1f)
-            )
+        Button(
+            onClick = { showCycleDialog = true },
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+        ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text("Período do Ciclo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Icon(Icons.Default.DateRange, contentDescription = null)
+            }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         
         // Theme Configuration
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
         ) {
@@ -111,59 +110,112 @@ fun SettingsScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
             )
         }
         
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         
-        Text("Categorias", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(1),
-            modifier = Modifier.weight(1f)
+        Button(
+            onClick = { showCategoriesListDialog = true },
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
         ) {
-            items(allCategories) { cat ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(32.dp).background(Color(cat.color), CircleShape), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                            Icon(
-                                imageVector = icons.firstOrNull { it.first == cat.iconName }?.second ?: Icons.Default.Category,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(cat.name)
-                    }
-                    Row {
-                        IconButton(onClick = {
-                            categoryToEdit = cat
-                            showCategoryDialog = true
-                        }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary)
-                        }
-                        IconButton(onClick = { categoryToDelete = cat }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Apagar", tint = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text("Gerenciar Categorias", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Icon(Icons.Default.Category, contentDescription = null)
             }
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = {
-                categoryToEdit = null
-                showCategoryDialog = true
+    }
+    
+    if (showCycleDialog) {
+        AlertDialog(
+            onDismissRequest = { showCycleDialog = false },
+            title = { Text("Período do Ciclo") },
+            text = {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    OutlinedTextField(
+                        value = startDay.toString(),
+                        onValueChange = { it.toIntOrNull()?.let { day -> viewModel.setStartDay(day) } },
+                        label = { Text("Dia Inicial") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = endDay.toString(),
+                        onValueChange = { it.toIntOrNull()?.let { day -> viewModel.setEndDay(day) } },
+                        label = { Text("Dia Final") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-        ) {
-            Text("Criar Nova Categoria")
-        }
+            confirmButton = {
+                TextButton(onClick = { showCycleDialog = false }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
+    if (showCategoriesListDialog) {
+        AlertDialog(
+            onDismissRequest = { showCategoriesListDialog = false },
+            title = { Text("Categorias") },
+            text = {
+                Column(modifier = Modifier.heightIn(max = 400.dp)) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(1),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        items(allCategories) { cat ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                    Box(modifier = Modifier.size(32.dp).background(Color(cat.color), CircleShape), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                                        Icon(
+                                            imageVector = icons.firstOrNull { it.first == cat.iconName }?.second ?: Icons.Default.Category,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(cat.name)
+                                }
+                                Row {
+                                    IconButton(onClick = {
+                                        categoryToEdit = cat
+                                        showCategoryDialog = true
+                                    }) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                    IconButton(onClick = { categoryToDelete = cat }) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Apagar", tint = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            categoryToEdit = null
+                            showCategoryDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Criar Nova Categoria")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCategoriesListDialog = false }) {
+                    Text("Fechar")
+                }
+            }
+        )
     }
     
     if (showCategoryDialog) {

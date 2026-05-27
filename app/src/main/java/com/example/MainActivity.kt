@@ -182,7 +182,7 @@ fun FluxoApp(viewModel: MainViewModel, modifier: Modifier = Modifier) {
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
                     ),
-                    color = MaterialTheme.colorScheme.onSecondary
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 
@@ -200,7 +200,7 @@ fun FluxoApp(viewModel: MainViewModel, modifier: Modifier = Modifier) {
                 Text(
                     text = "Restam ${DateUtils.getDaysRemainingInCycle(selectedDateMs, startDay, endDay)} dias no ciclo",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
                 )
                 
