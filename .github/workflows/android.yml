@@ -30,13 +30,14 @@ jobs:
     - name: Conceder permissão ao Gradle Wrapper
       run: chmod +x gradlew
 
-    # 5. Cria um arquivo keystore em branco/padrão para o Gradle não falhar na validação
-    - name: Fabricar Keystore de Debug Faltante
-      run: touch debug.keystore
+    # 5. Cria uma Keystore de Debug válida com os parâmetros padrão do Android Studio
+    - name: Gerar Keystore de Debug Válida
+      run: |
+        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 
-    # 6. Executa a compilação do seu projeto
+    # 6. Executa a compilação completa do seu projeto
     - name: Compilar o APK de Debug
-      run: ./gradlew assembleDebug -x validateSigningDebug
+      run: ./gradlew assembleDebug
 
     # 7. Captura o APK gerado e disponibiliza para download
     - name: Disponibilizar APK para Download
