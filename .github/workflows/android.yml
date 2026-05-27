@@ -1,0 +1,39 @@
+name: Compilar APK Android
+
+# Define o gatilho: roda sempre que houver um "push" na branch main (ou master)
+on:
+  push:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    # Roda em uma máquina virtual Linux atualizada cedida pelo GitHub
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Baixa o código do seu repositório para a máquina virtual
+    - name: Baixar o código fonte
+      uses: actions/checkout@v4
+
+    # 2. Instala e configura o ambiente Java (JDK 17 é o padrão atual para Android moderno)
+    - name: Configurar o Java JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    # 3. Dá permissão de execução para o script do Gradle (gerenciador de build do Android)
+    - name: Conceder permissão ao Gradle Wrapper
+      run: chmod +x gradlew
+
+    # 4. Executa a compilação do APK em modo de teste (Debug)
+    - name: Compilar o APK de Debug
+      run: ./gradlew assembleDebug
+
+    # 5. Pega o arquivo .apk gerado e disponibiliza para download na interface do GitHub
+    - name: Disponibilizar APK para Download
+      uses: actions/upload-artifact@v4
+      with:
+        name: meu-aplicativo-apk
+        path: app/build/outputs/apk/debug/app-debug.apk
