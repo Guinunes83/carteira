@@ -20,12 +20,12 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # 3. Baixa e gera o Wrapper usando uma versão moderna do Gradle (8.5)
-    #    que suporta nativamente o Java 17 e os scripts .kts
-    - name: Instalar Gradle Moderno e Criar Wrapper
+    # 3. Fabricamos o Wrapper diretamente na versão exigida pelo plug-in 9.1.1 do seu app
+    #    Instalamos o gradle base e pedimos para ele gerar o wrapper na versão 9.3.1
+    - name: Instalar Gradle e Criar Wrapper 9.3.1
       run: |
         sudo apt-get update && sudo apt-get install -y gradle
-        gradle wrapper --gradle-version 8.5
+        gradle wrapper --gradle-version 9.3.1
 
     # 4. Concede a permissão de execução para o arquivo gerado
     - name: Conceder permissão ao Gradle Wrapper
