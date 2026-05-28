@@ -32,14 +32,12 @@ class MainViewModel(
     val todayTransactions: StateFlow<List<Transaction>> = combine(
         _selectedDateMs,
         allTransactions,
-        userPreferences.startDayFlow,
-        userPreferences.endDayFlow
-    ) { dateMs, txs, sDay, eDay ->
+    ) { dateMs, txs ->
         txs.filter { tx ->
-            val startMs = DateUtils.getStartOfDayMs(tx.dateMs)
-            val endCycleMs = DateUtils.getEndOfCycleMs(tx.dateMs, sDay, eDay)
-            dateMs in startMs..endCycleMs
-        }
+            val startTargetDay = DateUtils.getStartOfDayMs(dateMs)
+            val endTargetDay = DateUtils.getEndOfDayMs(dateMs)
+            tx.dateMs in startTargetDay..endTargetDay
+        }.sortedByDescending { it.dateMs }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -113,15 +111,15 @@ class MainViewModel(
         }
     }
 
-    fun updateTransactionGroup(groupId: String, description: String, value: Double, category: String, dateDiff: Long) {
+    fun updateTransaction(id: Int, description: String, value: Double, category: String, dateMs: Long) {
         viewModelScope.launch {
-            repository.updateTransactionGroup(groupId, description, value, category, dateDiff)
+            repository.updateTransaction(id, description, value, category, dateMs)
         }
     }
 
-    fun deleteTransactionGroup(groupId: String) {
+    fun deleteTransaction(id: Int) {
         viewModelScope.launch {
-            repository.deleteTransactionGroup(groupId)
+            repository.deleteTransaction(id)
         }
     }
 

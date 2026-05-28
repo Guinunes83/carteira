@@ -23,9 +23,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions ORDER BY dateMs ASC")
     fun getAllTransactions(): Flow<List<Transaction>>
 
-    @Query("UPDATE transactions SET description = :description, value = :value, category = :category, dateMs = dateMs + :dateDiff WHERE groupId = :groupId")
-    suspend fun updateTransactionGroup(groupId: String, description: String, value: Double, category: String, dateDiff: Long)
+    @Query("UPDATE transactions SET description = :description, value = :value, category = :category, dateMs = :dateMs WHERE id = :id")
+    suspend fun updateTransaction(id: Int, description: String, value: Double, category: String, dateMs: Long)
 
-    @Query("DELETE FROM transactions WHERE groupId = :groupId")
-    suspend fun deleteTransactionGroup(groupId: String)
+    @Query("DELETE FROM transactions WHERE id = :id")
+    suspend fun deleteTransaction(id: Int)
 }

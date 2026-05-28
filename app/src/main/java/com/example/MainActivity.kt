@@ -132,6 +132,7 @@ fun FluxoApp(viewModel: MainViewModel, modifier: Modifier = Modifier) {
     var showForm by remember { mutableStateOf(false) }
     
     var showDatePickerDialog by remember { mutableStateOf(false) }
+    var showMonthlyTransactions by remember { mutableStateOf(false) }
 
     val dateFormatter = remember { SimpleDateFormat("dd 'de' MMM, yyyy", Locale("pt", "BR")) }
     val monthFormatter = remember { SimpleDateFormat("MMMM yyyy", Locale("pt", "BR")) }
@@ -258,6 +259,7 @@ fun FluxoApp(viewModel: MainViewModel, modifier: Modifier = Modifier) {
                 if (todayTransactions.isEmpty()) {
                     Box(
                         modifier = Modifier
+                            .weight(1f)
                             .fillMaxWidth()
                             .padding(32.dp),
                         contentAlignment = Alignment.Center
@@ -269,6 +271,7 @@ fun FluxoApp(viewModel: MainViewModel, modifier: Modifier = Modifier) {
                     }
                 } else {
                     LazyColumn(
+                        modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 24.dp)
                     ) {
                         items(todayTransactions, key = { it.id }) { transaction ->
@@ -281,6 +284,59 @@ fun FluxoApp(viewModel: MainViewModel, modifier: Modifier = Modifier) {
                                     showForm = true
                                 }
                             )
+                        }
+                    }
+                }
+                
+                TextButton(
+                    onClick = { showMonthlyTransactions = true },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp)
+                ) {
+                    Text("LANÇAMENTOS AGRUPADOS")
+                }
+            }
+        }
+        
+        if (showMonthlyTransactions) {
+            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            val allTransactionsList by viewModel.allTransactions.collectAsStateWithLifecycle(emptyList())
+            val startDay by viewModel.userPreferences.startDayFlow.collectAsStateWithLifecycle(1)
+            val endDay by viewModel.userPreferences.endDayFlow.collectAsStateWithLifecycle(31)
+            val cycleStart = DateUtils.getStartOfCycleMs(selectedDateMs, startDay, endDay)
+            val cycleEnd = DateUtils.getEndOfCycleMs(selectedDateMs, startDay, endDay)
+            val currentCycleTransactions = allTransactionsList.filter { it.dateMs in cycleStart..cycleEnd }.sortedByDescending { it.dateMs }
+            
+            ModalBottomSheet(
+                onDismissRequest = { showMonthlyTransactions = false },
+                containerColor = MaterialTheme.colorScheme.surface,
+                sheetState = sheetState
+            ) {
+                Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp)) {
+                    Text(
+                        text = "Lançamentos do Mês",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    if (currentCycleTransactions.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Nenhum lançamento no mês.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else {
+                        LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
+                            items(currentCycleTransactions, key = { it.id }) { transaction ->
+                                val categoryObj = viewModel.allCategories.collectAsStateWithLifecycle().value.find { it.name == transaction.category }
+                                TransactionItem(
+                                    transaction = transaction,
+                                    categoryObj = categoryObj,
+                                    onClick = {
+                                        transactionToEdit = transaction
+                                        showForm = true
+                                        showMonthlyTransactions = false
+                                    }
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
                         }
                     }
                 }
@@ -300,15 +356,14 @@ fun FluxoApp(viewModel: MainViewModel, modifier: Modifier = Modifier) {
                     defaultDateMs = selectedDateMs,
                     onAdd = { desc, value, txDateMs, cat, recType, recCount ->
                         if (transactionToEdit != null) {
-                            val diff = txDateMs - transactionToEdit!!.dateMs
-                            viewModel.updateTransactionGroup(transactionToEdit!!.groupId, desc, value, cat.name, diff)
+                            viewModel.updateTransaction(transactionToEdit!!.id, desc, value, cat.name, txDateMs)
                         } else {
                             viewModel.addTransactionGroup(desc, value, txDateMs, cat.name, recType, recCount)
                         }
                         showForm = false
                     },
                     onDelete = {
-                        transactionToEdit?.let { viewModel.deleteTransactionGroup(it.groupId) }
+                        transactionToEdit?.let { viewModel.deleteTransaction(it.id) }
                         showForm = false
                     },
                     onClose = { showForm = false }
@@ -401,7 +456,7 @@ fun TransactionForm(
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
             value = description,
-            onValueChange = { description = it },
+            onValueChange = { description = it.replaceFirstChar { char -> if (char.isLowerCase()) char.titlecase(java.util.Locale.ROOT) else char.toString() } },
             label = { Text("Descrição (ex: Almoço)") },
             modifier = Modifier.fillMaxWidth().testTag("desc_input"),
             singleLine = true

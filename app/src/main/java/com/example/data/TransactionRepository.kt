@@ -47,11 +47,11 @@ class TransactionRepository(
         transactionDao.insertTransaction(transaction)
     }
     
-    suspend fun updateTransactionGroup(groupId: String, description: String, value: Double, category: String, dateDiff: Long) {
-        transactionDao.updateTransactionGroup(groupId, description, value, category, dateDiff)
+    suspend fun updateTransaction(id: Int, description: String, value: Double, category: String, dateMs: Long) {
+        transactionDao.updateTransaction(id, description, value, category, dateMs)
     }
 
-    suspend fun deleteTransactionGroup(groupId: String) {
-        transactionDao.deleteTransactionGroup(groupId)
+    suspend fun deleteTransaction(id: Int) {
+        transactionDao.deleteTransaction(id)
     }
 }
