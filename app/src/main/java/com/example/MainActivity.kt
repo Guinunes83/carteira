@@ -71,7 +71,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
             MyApplicationTheme(darkTheme = isDarkTheme) {
-                MainScreen(viewModel)
+                var showSplash by remember { mutableStateOf(true) }
+                if (showSplash) {
+                    SplashScreen(onAnimationEnd = { showSplash = false })
+                } else {
+                    MainScreen(viewModel)
+                }
             }
         }
     }
@@ -299,12 +304,18 @@ fun FluxoApp(viewModel: MainViewModel, modifier: Modifier = Modifier) {
         
         if (showMonthlyTransactions) {
             val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            var groupedFilter by remember { mutableStateOf("Mês") }
             val allTransactionsList by viewModel.allTransactions.collectAsStateWithLifecycle(emptyList())
             val startDay by viewModel.userPreferences.startDayFlow.collectAsStateWithLifecycle(1)
             val endDay by viewModel.userPreferences.endDayFlow.collectAsStateWithLifecycle(31)
             val cycleStart = DateUtils.getStartOfCycleMs(selectedDateMs, startDay, endDay)
             val cycleEnd = DateUtils.getEndOfCycleMs(selectedDateMs, startDay, endDay)
-            val currentCycleTransactions = allTransactionsList.filter { it.dateMs in cycleStart..cycleEnd }.sortedByDescending { it.dateMs }
+            
+            val currentCycleTransactions = if (groupedFilter == "Mês") {
+                allTransactionsList.filter { it.dateMs in cycleStart..cycleEnd }.sortedByDescending { it.dateMs }
+            } else {
+                allTransactionsList.sortedByDescending { it.dateMs }
+            }
             
             ModalBottomSheet(
                 onDismissRequest = { showMonthlyTransactions = false },
@@ -313,14 +324,39 @@ fun FluxoApp(viewModel: MainViewModel, modifier: Modifier = Modifier) {
             ) {
                 Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp)) {
                     Text(
-                        text = "Lançamentos do Mês",
+                        text = "Lançamentos Agrupados",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { groupedFilter = "Mês" },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (groupedFilter == "Mês") MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                            )
+                        ) {
+                            Text("Mês", color = if (groupedFilter == "Mês") MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
+                        }
+                        OutlinedButton(
+                            onClick = { groupedFilter = "Total" },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (groupedFilter == "Total") MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                            )
+                        ) {
+                            Text("Total", color = if (groupedFilter == "Total") MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
+                        }
+                    }
+
                     if (currentCycleTransactions.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Nenhum lançamento no mês.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(if (groupedFilter == "Mês") "Nenhum lançamento no mês." else "Nenhum lançamento registrado.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
                         LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
@@ -682,5 +718,39 @@ fun TransactionItem(transaction: Transaction, categoryObj: com.example.data.Cate
                 )
             }
         }
+    }
+}
+
+@Composable
+fun SplashScreen(onAnimationEnd: () -> Unit) {
+    val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
+    var startAnimation by remember { mutableStateOf(false) }
+    
+    val offsetY by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (startAnimation) -screenHeight else screenHeight,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 1500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "offsetY"
+    )
+
+    LaunchedEffect(Unit) {
+        startAnimation = true
+        kotlinx.coroutines.delay(1500)
+        onAnimationEnd()
+    }
+    
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(androidx.compose.ui.graphics.Color(0xFF000080)), // Blue background
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_wallet_logo),
+            contentDescription = "Logo",
+            tint = androidx.compose.ui.graphics.Color.Unspecified,
+            modifier = Modifier
+                .size(120.dp)
+                .offset(y = offsetY)
+        )
     }
 }
