@@ -3,7 +3,9 @@ package com.example.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
@@ -95,22 +97,7 @@ fun SettingsScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Theme Configuration
-        Row(
-            modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-        ) {
-            Text("Tema Escuro", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Switch(
-                checked = isDarkTheme,
-                onCheckedChange = { viewModel.setIsDarkTheme(it) }
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(16.dp))
+        // spacer removed
         
         Button(
             onClick = { showCategoriesListDialog = true },
@@ -123,6 +110,21 @@ fun SettingsScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
                 Text("Gerenciar Categorias", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Icon(Icons.Default.Category, contentDescription = null)
             }
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        // Theme Configuration moved to bottom
+        Row(
+            modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            Text("Tema Escuro", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Switch(
+                checked = isDarkTheme,
+                onCheckedChange = { viewModel.setIsDarkTheme(it) }
+            )
         }
     }
     
@@ -160,8 +162,7 @@ fun SettingsScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
             title = { Text("Categorias") },
             text = {
                 Column(modifier = Modifier.heightIn(max = 400.dp)) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(1),
+                    LazyColumn(
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         items(allCategories) { cat ->
@@ -171,7 +172,7 @@ fun SettingsScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
                                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                    Box(modifier = Modifier.size(32.dp).background(Color(cat.color), CircleShape), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                                    Box(modifier = Modifier.size(32.dp).background(Color(0xFF000080), CircleShape), contentAlignment = androidx.compose.ui.Alignment.Center) {
                                         Icon(
                                             imageVector = icons.firstOrNull { it.first == cat.iconName }?.second ?: Icons.Default.Category,
                                             contentDescription = null,
@@ -264,7 +265,7 @@ fun CategoryDialog(
         0xFFE53935, 0xFFD81B60, 0xFF8E24AA, 0xFF3949AB, 0xFF1E88E5,
         0xFF00ACC1, 0xFF43A047, 0xFFFDD835, 0xFFFB8C00, 0xFF6D4C41
     )
-    var selectedColor by remember(initialCategory) { mutableStateOf(initialCategory?.color ?: colors[0]) }
+    var selectedColor by remember(initialCategory) { mutableStateOf(initialCategory?.color ?: colors.random()) }
     
     val icons = listOf(
         "ShoppingCart" to Icons.Default.ShoppingCart,
@@ -317,35 +318,17 @@ fun CategoryDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 
-                Text("Cor", style = MaterialTheme.typography.labelLarge)
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(5),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.height(100.dp)
-                ) {
-                    items(colors) { color ->
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(Color(color), CircleShape)
-                                .clickable { selectedColor = color }
-                        ) {
-                            if (selectedColor == color) {
-                                Icon(Icons.Default.Check, "Selected", tint = Color.White, modifier = Modifier.align(androidx.compose.ui.Alignment.Center))
-                            }
-                        }
-                    }
-                }
-                
                 Text("Ícone", style = MaterialTheme.typography.labelLarge)
                 Box {
-                    IconButton(onClick = { expandedIconMenu = true }) {
+                    IconButton(
+                        onClick = { expandedIconMenu = true },
+                        modifier = Modifier.background(Color(0xFF000080), CircleShape)
+                    ) {
                         Icon(
                             icons.firstOrNull { it.first == selectedIcon }?.second ?: Icons.Default.Category,
                             contentDescription = selectedIcon,
-                            tint = Color(selectedColor),
-                            modifier = Modifier.size(48.dp)
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                     DropdownMenu(
@@ -353,20 +336,26 @@ fun CategoryDialog(
                         onDismissRequest = { expandedIconMenu = false },
                         modifier = Modifier.height(300.dp).width(250.dp)
                     ) {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(4),
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(icons) { iconData ->
-                                IconButton(onClick = {
-                                    selectedIcon = iconData.first
-                                    expandedIconMenu = false
-                                }) {
-                                    Icon(
-                                        iconData.second,
-                                        contentDescription = iconData.first,
-                                        tint = if (selectedIcon == iconData.first) Color(selectedColor) else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                        val chunkedIcons = icons.chunked(4)
+                        chunkedIcons.forEach { rowIcons ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                rowIcons.forEach { iconData ->
+                                    IconButton(
+                                        onClick = {
+                                            selectedIcon = iconData.first
+                                            expandedIconMenu = false
+                                        },
+                                        modifier = Modifier.size(48.dp)
+                                    ) {
+                                        Icon(
+                                            iconData.second,
+                                            contentDescription = iconData.first,
+                                            tint = if (selectedIcon == iconData.first) Color(selectedColor) else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
                         }

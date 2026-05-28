@@ -43,44 +43,23 @@ class MainViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val dailyTarget: StateFlow<Double> = combine(
+    val dailyBalance: StateFlow<Double> = combine(
         _selectedDateMs,
-        allTransactions,
-        userPreferences.startDayFlow,
-        userPreferences.endDayFlow
-    ) { dateMs, txs, sDay, eDay ->
-        val targetStartCycleMs = DateUtils.getStartOfCycleMs(dateMs, sDay, eDay)
-        
-        // Sum of all past transactions before the start of the current cycle is carried over.
-        val pastTransactions = txs.filter { it.dateMs < targetStartCycleMs }
-        val carryOver = pastTransactions.sumOf { it.value }
-        
-        val totalDaysInCycle = DateUtils.getDaysRemainingInCycle(targetStartCycleMs, sDay, eDay)
-        val dailyCarryOverFlow = if (totalDaysInCycle > 0) carryOver / totalDaysInCycle else 0.0
-        
+        allTransactions
+    ) { dateMs, txs ->
         val startOfTargetDateMs = DateUtils.getStartOfDayMs(dateMs)
+        val endOfTargetDateMs = DateUtils.getEndOfDayMs(dateMs)
         
-        // Calculate how many days have elapsed from the start of the cycle to the currently selected date.
-        val daysElapsed = DateUtils.getDaysRemainingInCycle(targetStartCycleMs, sDay, eDay) - 
-                          DateUtils.getDaysRemainingInCycle(startOfTargetDateMs, sDay, eDay) + 1
-                          
-        var currentCycleAccumulatedBalance = dailyCarryOverFlow * daysElapsed.coerceAtLeast(1)
-        
-        val currentCycleTxs = txs.filter { 
-            it.dateMs in targetStartCycleMs..DateUtils.getEndOfDayMs(dateMs) 
-        }
-        
-        for (tx in currentCycleTxs) {
-            val txDaysLeft = DateUtils.getDaysRemainingInCycle(tx.dateMs, sDay, eDay).coerceAtLeast(1)
-            val txDailyFlow = tx.value / txDaysLeft
-            
-            val activeDays = DateUtils.getDaysRemainingInCycle(tx.dateMs, sDay, eDay) - 
-                             DateUtils.getDaysRemainingInCycle(startOfTargetDateMs, sDay, eDay) + 1
-                             
-            currentCycleAccumulatedBalance += txDailyFlow * activeDays.coerceAtLeast(1)
-        }
-        
-        currentCycleAccumulatedBalance
+        txs.filter { it.dateMs in startOfTargetDateMs..endOfTargetDateMs }.sumOf { it.value }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val cycleTotal: StateFlow<Double> = combine(
+        _selectedDateMs,
+        allTransactions
+    ) { dateMs, txs ->
+        val endOfTargetDateMs = DateUtils.getEndOfDayMs(dateMs)
+        txs.filter { it.dateMs <= endOfTargetDateMs }.sumOf { it.value }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
     
     val isDarkTheme = userPreferences.isDarkThemeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)

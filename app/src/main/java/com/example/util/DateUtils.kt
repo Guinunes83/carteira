@@ -68,13 +68,6 @@ object DateUtils {
         calendar.set(Calendar.MILLISECOND, 999)
         return calendar.timeInMillis
     }
-    
-    fun getDaysRemainingInCycle(timestamp: Long = System.currentTimeMillis(), startDay: Int = 1, endDay: Int = 31): Int {
-        val endMs = getEndOfCycleMs(timestamp, startDay, endDay)
-        val diff = endMs - timestamp
-        val days = (diff / (1000 * 60 * 60 * 24)).toInt()
-        return days.coerceAtLeast(0) + 1
-    }
 
     fun utcMidnightToLocal(utcMs: Long): Long {
         val utcCal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply { timeInMillis = utcMs }

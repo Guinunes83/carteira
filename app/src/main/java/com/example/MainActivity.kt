@@ -123,11 +123,10 @@ fun MainScreen(viewModel: MainViewModel) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FluxoApp(viewModel: MainViewModel, modifier: Modifier = Modifier) {
-    val dailyTarget by viewModel.dailyTarget.collectAsStateWithLifecycle()
+    val dailyBalance by viewModel.dailyBalance.collectAsStateWithLifecycle()
+    val cycleTotal by viewModel.cycleTotal.collectAsStateWithLifecycle()
     val todayTransactions by viewModel.todayTransactions.collectAsStateWithLifecycle()
     val selectedDateMs by viewModel.selectedDateMs.collectAsStateWithLifecycle()
-    val startDay by viewModel.startDay.collectAsStateWithLifecycle()
-    val endDay by viewModel.endDay.collectAsStateWithLifecycle()
 
     var transactionToEdit by remember { mutableStateOf<Transaction?>(null) }
     var showForm by remember { mutableStateOf(false) }
@@ -135,6 +134,7 @@ fun FluxoApp(viewModel: MainViewModel, modifier: Modifier = Modifier) {
     var showDatePickerDialog by remember { mutableStateOf(false) }
 
     val dateFormatter = remember { SimpleDateFormat("dd 'de' MMM, yyyy", Locale("pt", "BR")) }
+    val monthFormatter = remember { SimpleDateFormat("MMMM yyyy", Locale("pt", "BR")) }
 
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = DateUtils.localToUtcMidnight(selectedDateMs)
@@ -177,16 +177,16 @@ fun FluxoApp(viewModel: MainViewModel, modifier: Modifier = Modifier) {
                     .padding(horizontal = 16.dp, vertical = 24.dp)
             ) {
                 Text(
-                    text = "Meta Diária / Saldo".uppercase(),
+                    text = "Saldo do Dia".uppercase(),
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
                     ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 
-                val formattedBalance = NumberFormat.getCurrencyInstance(Locale("pt", "BR")).format(dailyTarget)
+                val formattedBalance = NumberFormat.getCurrencyInstance(Locale("pt", "BR")).format(dailyBalance)
                 Text(
                     text = formattedBalance,
                     style = MaterialTheme.typography.displayLarge.copy(
@@ -194,14 +194,17 @@ fun FluxoApp(viewModel: MainViewModel, modifier: Modifier = Modifier) {
                         fontSize = 42.sp,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                     ),
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = if (dailyBalance >= 0) com.example.ui.theme.GreenIncome else com.example.ui.theme.RedExpense
                 )
                 
+                val formattedTotal = NumberFormat.getCurrencyInstance(Locale("pt", "BR")).format(cycleTotal)
+                val currentMonthName = monthFormatter.format(Date(selectedDateMs)).replaceFirstChar { it.uppercase() }
+                
                 Text(
-                    text = "Restam ${DateUtils.getDaysRemainingInCycle(selectedDateMs, startDay, endDay)} dias no ciclo",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
+                    text = "Valor total de $currentMonthName é $formattedTotal",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    color = if (cycleTotal >= 0) com.example.ui.theme.GreenIncome else com.example.ui.theme.RedExpense,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
                 
             }
@@ -272,8 +275,6 @@ fun FluxoApp(viewModel: MainViewModel, modifier: Modifier = Modifier) {
                             val categoryObj = viewModel.allCategories.collectAsStateWithLifecycle().value.find { it.name == transaction.category }
                             TransactionItem(
                                 transaction = transaction,
-                                startDay = startDay,
-                                endDay = endDay,
                                 categoryObj = categoryObj,
                                 onClick = {
                                     transactionToEdit = transaction
@@ -429,8 +430,20 @@ fun TransactionForm(
                     DropdownMenuItem(
                         text = { 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.size(16.dp).background(androidx.compose.ui.graphics.Color(cat.color), androidx.compose.foundation.shape.CircleShape))
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(androidx.compose.ui.graphics.Color(0xFF000080), androidx.compose.foundation.shape.CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = com.example.util.IconHelper.getIcon(cat.iconName),
+                                        contentDescription = null,
+                                        tint = androidx.compose.ui.graphics.Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
                                 Text(cat.name) 
                             }
                         },
@@ -550,16 +563,13 @@ fun TransactionForm(
 }
 
 @Composable
-fun TransactionItem(transaction: Transaction, startDay: Int, endDay: Int, categoryObj: com.example.data.Category?, onClick: () -> Unit) {
+fun TransactionItem(transaction: Transaction, categoryObj: com.example.data.Category?, onClick: () -> Unit) {
     val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
     val formattedTime = formatter.format(Date(transaction.dateMs))
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
     
     val isPositive = transaction.value >= 0
-    val daysLeft = DateUtils.getDaysRemainingInCycle(transaction.dateMs, startDay, endDay).coerceAtLeast(1)
-    val dailyImpact = transaction.value / daysLeft
-    
-    val categoryColor = categoryObj?.color?.let { androidx.compose.ui.graphics.Color(it) } ?: MaterialTheme.colorScheme.primary
+    val dynamicColor = if (isPositive) com.example.ui.theme.GreenIncome else com.example.ui.theme.RedExpense
 
     Card(
         modifier = Modifier
@@ -567,7 +577,7 @@ fun TransactionItem(transaction: Transaction, startDay: Int, endDay: Int, catego
             .padding(vertical = 4.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = categoryColor.copy(alpha = 0.1f)),
+        colors = CardDefaults.cardColors(containerColor = dynamicColor.copy(alpha = 0.1f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
@@ -581,7 +591,7 @@ fun TransactionItem(transaction: Transaction, startDay: Int, endDay: Int, catego
                 Box(
                     modifier = Modifier
                         .size(40.dp)
-                        .background(categoryColor, CircleShape),
+                        .background(dynamicColor, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -603,21 +613,14 @@ fun TransactionItem(transaction: Transaction, startDay: Int, endDay: Int, catego
                         text = "$formattedTime • ${transaction.category}" + if (transaction.recurrenceType != "UNICO") " 🔄" else "",
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 10.sp,
-                        color = categoryColor
+                        color = dynamicColor
                     )
                 }
             }
             
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = currencyFormat.format(kotlin.math.abs(transaction.value)),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.tertiary,
-                    fontStyle = androidx.compose.ui.text.font.FontStyle.Normal
-                )
-                Text(
-                    text = (if(isPositive) "+ " else "- ") + currencyFormat.format(kotlin.math.abs(dailyImpact)),
+                    text = (if(isPositive) "+ " else "- ") + currencyFormat.format(kotlin.math.abs(transaction.value)),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (isPositive) com.example.ui.theme.GreenIncome else com.example.ui.theme.RedExpense

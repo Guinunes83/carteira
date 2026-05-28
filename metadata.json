@@ -1,5 +1,5 @@
 {
-  "name": "Fluxo",
+  "name": "Carteira",
   "description": "App de controle financeiro diário com fluxo de caixa",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

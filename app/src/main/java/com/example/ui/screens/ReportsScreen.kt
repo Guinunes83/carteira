@@ -57,7 +57,8 @@ fun ReportsScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
         }
     }
 
-    val stats = remember(allTransactions, selectedPeriod, selectedMonthIndex, selectedYear) {
+    // Sum negative values (expenses) per category
+    val expenseStats = remember(allTransactions, selectedPeriod, selectedMonthIndex, selectedYear) {
         if (allTransactions.isEmpty()) return@remember emptyMap<String, Double>()
         
         val filtered = when (selectedPeriod) {
@@ -72,12 +73,29 @@ fun ReportsScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
             else -> allTransactions
         }
         
-        // Sum negative values (expenses) per category
-        val expenses = filtered.filter { it.value < 0 }
-        val categorySums = expenses.groupBy { it.category }.mapValues { (_, txs) ->
+        filtered.filter { it.value < 0 }.groupBy { it.category }.mapValues { (_, txs) ->
             kotlin.math.abs(txs.sumOf { it.value })
         }
-        categorySums
+    }
+    
+    val incomeStats = remember(allTransactions, selectedPeriod, selectedMonthIndex, selectedYear) {
+        if (allTransactions.isEmpty()) return@remember emptyMap<String, Double>()
+        
+        val filtered = when (selectedPeriod) {
+            "Mês" -> allTransactions.filter { 
+                val cal = Calendar.getInstance().apply { timeInMillis = it.dateMs }
+                cal.get(Calendar.MONTH) == selectedMonthIndex && cal.get(Calendar.YEAR) == selectedYear
+            }
+            "Ano" -> allTransactions.filter { 
+                val cal = Calendar.getInstance().apply { timeInMillis = it.dateMs }
+                cal.get(Calendar.YEAR) == selectedYear
+            }
+            else -> allTransactions
+        }
+        
+        filtered.filter { it.value > 0 }.groupBy { it.category }.mapValues { (_, txs) ->
+            txs.sumOf { it.value }
+        }
     }
 
     Column(
@@ -153,79 +171,155 @@ fun ReportsScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
         
         Spacer(modifier = Modifier.height(24.dp))
         
-        val totalExpense = stats.values.sum()
+        val totalExpense = expenseStats.values.sum()
+        val totalIncome = incomeStats.values.sum()
         
-        if (totalExpense > 0) {
-            // Pie Chart
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentAlignment = Alignment.Center
+        if (totalExpense > 0 || totalIncome > 0) {
+            LazyColumn(
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxSize()
             ) {
-                Canvas(modifier = Modifier.size(160.dp)) {
-                    var startAngle = -90f
-                    stats.forEach { (catName, sum) ->
-                        val sweepAngle = ((sum / totalExpense) * 360f).toFloat()
-                        val colorLong = allCategories.find { it.name == catName }?.color ?: 0xFF9E9E9E
-                        drawArc(
-                            color = Color(colorLong),
-                            startAngle = startAngle,
-                            sweepAngle = sweepAngle,
-                            useCenter = true,
-                            size = Size(size.width, size.height)
-                        )
-                        startAngle += sweepAngle
+                if (totalExpense > 0) {
+                    item {
+                        Text("Despesas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        // Pie Chart Despesas
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Canvas(modifier = Modifier.size(160.dp)) {
+                                var startAngle = -90f
+                                expenseStats.forEach { (catName, sum) ->
+                                    val sweepAngle = ((sum / totalExpense) * 360f).toFloat()
+                                    val colorLong = allCategories.find { it.name == catName }?.color ?: 0xFF9E9E9E
+                                    drawArc(
+                                        color = Color(colorLong),
+                                        startAngle = startAngle,
+                                        sweepAngle = sweepAngle,
+                                        useCenter = true,
+                                        size = Size(size.width, size.height)
+                                    )
+                                    startAngle += sweepAngle
+                                }
+                            }
+                            
+                            Box(
+                                modifier = Modifier
+                                    .size(100.dp)
+                                    .background(MaterialTheme.colorScheme.background, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = currencyFormat.format(totalExpense),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
                     }
+                    
+                    val sortedExpenses = expenseStats.entries.sortedByDescending { it.value }
+                    items(sortedExpenses) { entry ->
+                        val colorLong = allCategories.find { it.name == entry.key }?.color ?: 0xFF9E9E9E
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(16.dp).background(Color(colorLong), CircleShape))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(entry.key, style = MaterialTheme.typography.bodyLarge)
+                            }
+                            Text(
+                                text = currencyFormat.format(entry.value),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    
+                    item { Spacer(modifier = Modifier.height(24.dp)) }
                 }
                 
-                Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .background(MaterialTheme.colorScheme.background, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = currencyFormat.format(totalExpense),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            LazyColumn(
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)
-            ) {
-                val sortedStats = stats.entries.sortedByDescending { it.value }
-                items(sortedStats) { entry ->
-                    val colorLong = allCategories.find { it.name == entry.key }?.color ?: 0xFF9E9E9E
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(16.dp).background(Color(colorLong), CircleShape))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(entry.key, style = MaterialTheme.typography.bodyLarge)
+                if (totalIncome > 0) {
+                    item {
+                        Text("Receitas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        // Pie Chart Receitas
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Canvas(modifier = Modifier.size(160.dp)) {
+                                var startAngle = -90f
+                                incomeStats.forEach { (catName, sum) ->
+                                    val sweepAngle = ((sum / totalIncome) * 360f).toFloat()
+                                    val colorLong = allCategories.find { it.name == catName }?.color ?: 0xFF9E9E9E
+                                    drawArc(
+                                        color = Color(colorLong),
+                                        startAngle = startAngle,
+                                        sweepAngle = sweepAngle,
+                                        useCenter = true,
+                                        size = Size(size.width, size.height)
+                                    )
+                                    startAngle += sweepAngle
+                                }
+                            }
+                            
+                            Box(
+                                modifier = Modifier
+                                    .size(100.dp)
+                                    .background(MaterialTheme.colorScheme.background, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = currencyFormat.format(totalIncome),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = com.example.ui.theme.GreenIncome
+                                )
+                            }
                         }
-                        Text(
-                            text = currencyFormat.format(entry.value),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold
-                        )
+                    }
+                    
+                    val sortedIncomes = incomeStats.entries.sortedByDescending { it.value }
+                    items(sortedIncomes) { entry ->
+                        val colorLong = allCategories.find { it.name == entry.key }?.color ?: 0xFF9E9E9E
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(16.dp).background(Color(colorLong), CircleShape))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(entry.key, style = MaterialTheme.typography.bodyLarge)
+                            }
+                            Text(
+                                text = currencyFormat.format(entry.value),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = com.example.ui.theme.GreenIncome
+                            )
+                        }
                     }
                 }
             }
-            
         } else {
             Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                Text("Nenhuma despesa no período")
+                Text("Sem dados no período")
             }
         }
     }
