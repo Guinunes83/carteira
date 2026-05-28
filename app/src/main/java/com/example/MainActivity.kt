@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,13 +32,17 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -723,34 +728,204 @@ fun TransactionItem(transaction: Transaction, categoryObj: com.example.data.Cate
 
 @Composable
 fun SplashScreen(onAnimationEnd: () -> Unit) {
-    val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
-    var startAnimation by remember { mutableStateOf(false) }
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.toFloat()
+    val screenWidthHalf = (configuration.screenWidthDp / 2)
+    val screenHeightHalf = (configuration.screenHeightDp / 2)
     
-    val offsetY by androidx.compose.animation.core.animateDpAsState(
-        targetValue = if (startAnimation) -screenHeight else screenHeight,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 1500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-        label = "offsetY"
-    )
+    var isExiting by remember { mutableStateOf(false) }
+    
+    val dollarSigns = remember {
+        List(30) {
+            val xOffset = (-screenWidthHalf..screenWidthHalf).random().toFloat()
+            val yOffset = (-screenHeightHalf..screenHeightHalf).random().toFloat()
+            val baseSize = (24..64).random().toFloat()
+            val isPulsing = Math.random() > 0.4
+            val isScaling = Math.random() > 0.4
+            val phase = (0..2000).random()
+            
+            DollarSignData(xOffset, yOffset, baseSize, isPulsing, isScaling, phase)
+        }
+    }
+    
+    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "pulse")
+    val offsetY = remember { androidx.compose.animation.core.Animatable(screenHeight) }
 
     LaunchedEffect(Unit) {
-        startAnimation = true
-        kotlinx.coroutines.delay(1500)
+        offsetY.animateTo(
+            targetValue = 0f,
+            animationSpec = androidx.compose.animation.core.tween(
+                durationMillis = 3500,
+                easing = androidx.compose.animation.core.LinearOutSlowInEasing
+            )
+        )
+        kotlinx.coroutines.delay(400)
+        isExiting = true
+        kotlinx.coroutines.delay(1200)
         onAnimationEnd()
     }
     
+    val revealProgress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isExiting) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 1000, easing = androidx.compose.animation.core.FastOutLinearInEasing),
+        label = "revealProgress"
+    )
+    val exitAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isExiting) 0f else 1f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 300, delayMillis = 900, easing = androidx.compose.animation.core.LinearEasing),
+        label = "exitAlpha"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(androidx.compose.ui.graphics.Color(0xFF000080)), // Blue background
+            .alpha(exitAlpha)
+            .background(Color(0xFF003060)),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_wallet_logo),
-            contentDescription = "Logo",
-            tint = androidx.compose.ui.graphics.Color.Unspecified,
+        // Background Dollar Signs
+        dollarSigns.forEach { ds ->
+            val alphaState = if (ds.isPulsing) {
+                infiniteTransition.animateFloat(
+                    initialValue = 0.1f,
+                    targetValue = 1f,
+                    animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                        animation = androidx.compose.animation.core.tween(durationMillis = 1500 + ds.phase, easing = androidx.compose.animation.core.LinearEasing),
+                        repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                    ),
+                    label = "alpha"
+                ).value
+            } else 0.5f
+
+            val scaleState = if (ds.isScaling) {
+                infiniteTransition.animateFloat(
+                    initialValue = 1f,
+                    targetValue = 1.3f,
+                    animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                        animation = androidx.compose.animation.core.tween(durationMillis = 2000 + ds.phase, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                        repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                    ),
+                    label = "scale"
+                ).value
+            } else 1f
+            
+            Text(
+                text = "$",
+                fontSize = ds.baseSize.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFC0C0C0).copy(alpha = alphaState),
+                modifier = Modifier
+                    .offset(x = ds.x.dp, y = ds.y.dp)
+                    .graphicsLayer(
+                        scaleX = scaleState,
+                        scaleY = scaleState
+                    )
+            )
+        }
+        
+        // Central Text
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.zIndex(10f)
+        ) {
+            val textStyle = MaterialTheme.typography.displayLarge.copy(
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 8.sp,
+                fontSize = 48.sp // Adjusted for prominent display
+            )
+            
+            Text(
+                text = "CARTEIRA",
+                style = textStyle.copy(
+                    drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(
+                        miter = 10f,
+                        width = 4f,
+                        join = androidx.compose.ui.graphics.StrokeJoin.Round
+                    )
+                ),
+                color = Color.Black
+            )
+            Text(
+                text = "CARTEIRA",
+                style = textStyle,
+                color = Color(0xFFFFD700) // Golden Yellow
+            )
+        }
+
+        // Wallet Icon with Motion Lines
+        Box(
             modifier = Modifier
-                .size(120.dp)
-                .offset(y = offsetY)
-        )
+                .offset(y = offsetY.value.dp)
+                .size(160.dp)
+                .zIndex(5f),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Icon(
+                painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_wallet_logo),
+                contentDescription = "Logo",
+                tint = Color.Unspecified,
+                modifier = Modifier.size(120.dp)
+            )
+            
+            val isMoving = Math.abs(offsetY.value) > 10f
+            if (isMoving && !isExiting) {
+                androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                    val lineCount = 5
+                    val spacing = size.width / (lineCount + 1)
+                    val yLineStart = 110.dp.toPx()
+                    
+                    for (j in 1..lineCount) {
+                        val xPos = spacing * j
+                        val relativeSpeed = Math.abs(offsetY.value) / screenHeight
+                        val baseLength = (20..60).random().toFloat()
+                        val length = baseLength + (100f * relativeSpeed)
+                        val yStartAdjusted = yLineStart + if (j % 2 == 0) 10.dp.toPx() else 0f
+                        
+                        drawLine(
+                            color = Color.White.copy(alpha = relativeSpeed.coerceIn(0.1f, 0.6f)),
+                            start = androidx.compose.ui.geometry.Offset(x = xPos, y = yStartAdjusted),
+                            end = androidx.compose.ui.geometry.Offset(x = xPos, y = yStartAdjusted + length),
+                            strokeWidth = 3.dp.toPx(),
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round
+                        )
+                    }
+                }
+            }
+        }
+        
+        // VCGMotion Style Reveal Canvas
+        if (revealProgress > 0f) {
+            androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize().zIndex(20f)) {
+                val maxRadius = size.width * 1.5f
+                val colors = listOf(
+                    Color(0xFFFFD700), // Gold
+                    Color(0xFF00BFFF), // Deep Sky Blue
+                    Color(0xFFFFEE58), // Yellow
+                    Color(0xFF00509E), // Mid Blue
+                    Color(0xFF003060)  // Dark Blue
+                )
+                
+                for (i in colors.indices) {
+                   val delay = i * 0.12f
+                   val p = (revealProgress - delay) / (1f - delay)
+                   if (p > 0f) {
+                       drawCircle(
+                           color = colors[i],
+                           radius = maxRadius * androidx.compose.animation.core.CubicBezierEasing(0.0f, 0.0f, 0.2f, 1.0f).transform(p.coerceIn(0f, 1f))
+                       )
+                   }
+                }
+            }
+        }
     }
 }
+
+data class DollarSignData(
+    val x: Float,
+    val y: Float,
+    val baseSize: Float,
+    val isPulsing: Boolean,
+    val isScaling: Boolean,
+    val phase: Int
+)
